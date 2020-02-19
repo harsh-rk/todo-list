@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <title>To-do list</title>
+        <link rel="stylesheet" href="css/style.css">
+    </head>
+
+    <body>
+        <div class="header">
+            <h1>To-do list</h1>
+            <input type="text" id="noteInput" class="noteInput" placeholder="Take a note...">
+        </div>
+
+        <div>
+            <ul id="noteList" class="noteList">
+                <li class="note">
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+                    sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                    Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
+                    commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+                    dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident,
+                    sunt in culpa qui officia deserunt mollit anim id est laborum."<br>
+                    Nested tasks in a note
+                    <ul class="taskList">
+                        <li class="task">abc</li>
+                        <li class="task checked">def</li>
+                        <li class="task">ghi</li>
+                        <input type="text" class="taskInput" placeholder="Add a task...">
+                    </ul>
+                </li>
+                <li class="note checked">Checked nested note
+                    <ul class="taskList">
+                        <li class="task checked">jkl</li>
+                        <input type="text" class="taskInput" placeholder="Add a task...">
+                    </ul>
+                </li>
+            </ul>
+            <script src="js/todo.js"></script>
+        </div>
+
+    </body>
+
+</html>
