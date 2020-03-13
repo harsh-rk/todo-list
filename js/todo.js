@@ -1,264 +1,308 @@
 
-const TASK_LIST_ID = -1;
-const TASK_INPUT_EMPTY = "A task cannot be empty";
-const FAILURE = "failure";
-const LIST_ROOT_KEY = "todos";
-const NUMBER_OF_TASKS_KEY = "numberOfTasks";
+const constants = {
+    LIST_ROOT_KEY: "todos",
+    NUMBER_OF_TODOS_KEY: "numberOfTodos",
 
-let model = (function () {
-    let numberOfTasks = JSON.parse(localStorage.getItem(NUMBER_OF_TASKS_KEY)) || 0;
-    let listRoot = JSON.parse(localStorage.getItem(LIST_ROOT_KEY)) || {
-        id: TASK_LIST_ID,
-        tasks: {}
-    };
+    TODO_LIST_ID: -1,
+    TODO_INPUT_EMPTY: "A to-do cannot be empty",
 
-    function commit() {
-        localStorage.setItem(LIST_ROOT_KEY, JSON.stringify(listRoot));
-        localStorage.setItem(NUMBER_OF_TASKS_KEY, JSON.stringify(numberOfTasks));
+    TICK_TODO_APP_ID: "tick",
+    CLOSE_TODO_APP_ID: "close"
+};
+
+function closest(element, value) {
+    if(element.tagName === value || element.todoAppID === value) return element;
+    return element.parentElement ? closest(element.parentElement, value) : null;
+}
+
+function find(element, value) {
+
+    const queue = [];
+    for(let i=0; i<element.childNodes.length; i++) {
+        queue.push(element.childNodes[i]);
     }
 
-    function findTaskAndParent(taskId) {
-        if(taskId === listRoot.id) {
-            return {
-                task: listRoot,
-                parentTask: null
-            };
-        }
-
-        let tasks = this.tasks;
-        if(tasks && tasks.hasOwnProperty(taskId)) {
-            return {
-                task: tasks[taskId],
-                parentTask: this
-            };
-        }
-        else {
-            for(let subTaskId in tasks) {
-                let findResult = findTaskAndParent.call(tasks[subTaskId], taskId);
-                if(findResult !== FAILURE) return findResult;
-            }
-            return FAILURE;
+    while(queue.length>0) {
+        const node = queue.shift();
+        if(node.tagName === value || node.todoAppID === value) return node;
+        for(let i=0; i<node.childNodes.length; i++) {
+            queue.push(node.childNodes[i]);
         }
     }
+    return null;
+}
 
-    function addTask(parentTask, inputText) {
-        let task = {
-            id: numberOfTasks++,
-            parentId: parentTask.id,
-            text: inputText,
-            checked: parentTask.checked ? true: false,
-            tasks: {}
-        };
-
-        parentTask.tasks[task.id] = task;
-        commit();
-    }
-
-    function toggleSubTasks() {
-        let tasks = this.tasks;
-        for(let subTaskId in tasks) {
-            let task = tasks[subTaskId];
-            task.checked = this.checked;
-            toggleSubTasks.call(task);
-        }
-    }
-
-    function toggleParentTasks() {
-        let findResult = findTaskAndParent.call(listRoot, this.id);
-        let task  = findResult.task;
-        let parentTask = findResult.parentTask;
-
-        if(parentTask && parentTask.checked && !task.checked) {
-            parentTask.checked = false;
-            toggleParentTasks.call(parentTask);
-        }
-    }
-
-    function addToTask(taskId, inputText) {
-        let findResult = findTaskAndParent.call(listRoot, taskId);
-        addTask(findResult.task, inputText);
-    }
-
-    function toggleTask(taskId) {
-        let findResult = findTaskAndParent.call(listRoot, taskId);
-        let task = findResult.task;
-        task.checked = task.checked ? false : true;
-
-        toggleParentTasks.call(task);
-        toggleSubTasks.call(task);
-        commit();
-    }
-
-    function deleteTask(taskId) {
-        let findResult = findTaskAndParent.call(listRoot, taskId);
-        let parentTask = findResult.parentTask;
-        delete parentTask.tasks[taskId];
-        commit();
-    }
-
-    function getAllTasks() {
-        return listRoot.tasks;
-    }
-
-    function printTask(taskId) {
-        console.log(findTaskAndParent.call(listRoot, taskId));
-    }
-
-    return {
-        addToTask,
-        toggleTask,
-        deleteTask,
-        getAllTasks
-    }
-})();
-
-let view = (function () {
-
-    function createElement(tag, className) {
-        const element = document.createElement(tag);
-        if(className) element.classList.add(className);
-        return element;
-    }
-
-    function getElement(selector) {
-        const element = document.querySelector(selector);
-        return element;
-    }
-
-    function clearTaskList() {
-        while(taskList.firstChild) {
-            taskList.removeChild(taskList.firstChild);
-        }
-    }
-
-    function createInputElement(parentId) {
-        let input = createElement("INPUT");
-        input.id = parentId;
-        input.type = "text";
-        input.placeholder = "Add a task...";
-        return input;
-    }
-
-    function createTaskElement(task) {
-        const li = createElement("LI", "task");
-        li.id = task.id;
-        if(task.checked) li.classList.add("checked");
-
-        const toggle = createElement("SPAN", "action");
-        toggle.classList.add("check");
-        toggle.textContent = "\u2713";
-
-        const taskText = createElement("SPAN");
-        taskText.textContent = task.text;
-
-        const close = createElement("SPAN", "action");
-        close.classList.add("close");
-        close.textContent = "\u00D7";
-
-        let subTaskList = createElement("UL", "taskList");
-        let subTasks = task.tasks;
-        for(let subTaskId in subTasks) {
-            subTaskList.appendChild(createTaskElement(subTasks[subTaskId]));
-        }
-        subTaskList.append(createInputElement(task.id));
-
-        li.append(toggle, taskText, subTaskList, close);
-        return li;
-    }
-
-    function renderTasks(tasks) {
-        clearTaskList();
-
-        for(let taskId in tasks) {
-            taskList.append(createTaskElement(tasks[taskId]));
-        }
-    }
-
-    function bindAddToTask(handler) {
-        function inputOnEnter(event) {
-            if(event.target.tagName === "INPUT" && event.key === "Enter") {
-                if(event.target.value === "") {
-                    alert(TASK_INPUT_EMPTY);
+function TodoInputView() {
+    this.initialize = function(todoAppID, inputOnEnter) {
+        const inputField = document.createElement("INPUT");
+        inputField.classList.add("todoInput");
+        inputField.todoAppID = todoAppID;
+        inputField.type = "text";
+        inputField.placeholder = "Add a to-do...";
+        inputField.onkeypress = event => {
+            if(event.code === "Enter") {
+                if(!event.target.value) {
+                    alert(constants.TODO_INPUT_EMPTY);
                 }
                 else {
-                    handler(event.target.id, event.target.value);
+                    inputOnEnter(event.target.value);
                     event.target.value = "";
                 }
             }
+        };
+
+        this.inputField = inputField;
+    };
+
+    this.render = function () {
+      return this.inputField;
+    };
+}
+
+function TodoHeaderView() {
+    this.initialize = function(inputOnEnterHandler) {
+        const header = document.createElement("DIV");
+        header.classList.add("todoHeader");
+        header.todoAppID = "todoHeader";
+        this.header = header;
+
+        const title = document.createElement("h1");
+        title.todoAppID = "todoTitle";
+        title.textContent = "To-do list";
+        this.title = title;
+
+        const todoInputView = new TodoInputView();
+        todoInputView.initialize("todoInput", inputOnEnterHandler);
+        this.todoInputView = todoInputView;
+    };
+
+    this.render = function () {
+        this.header.append(this.title, this.todoInputView.render());
+        return this.header;
+    };
+}
+
+function TodoActionView() {
+    this.initialize = function (todoActionOnClick) {
+        const action = document.createElement("SPAN");
+        action.classList.add("todoAction");
+        action.onclick = event => {
+            const todo = closest(event.target, "LI");
+            todoActionOnClick(todo.todoAppID);
+        };
+        this.action = action;
+    };
+
+    this.render = function () {
+      return this.action;
+    };
+
+    this.setClass = function(className) {
+        this.action.classList.add(className);
+    };
+
+    this.setTodoAppID = function(todoAppID) {
+        this.action.todoAppID = todoAppID;
+    };
+
+    this.setText = function(text) {
+        this.action.textContent = text;
+    };
+}
+
+function TodoItemView() {
+    this.initialize = function(todoAppID, inputText, isTicked, todoTickOnClickHandler, todoCloseOnClickHandler) {
+        const todo = document.createElement("LI");
+        todo.classList.add("todo");
+        todo.todoAppID = todoAppID;
+        if(isTicked) todo.classList.add("ticked");
+
+        const tickActionView = new TodoActionView();
+        tickActionView.initialize(todoTickOnClickHandler);
+        tickActionView.setClass("tick");
+        tickActionView.setTodoAppID(constants.TICK_TODO_APP_ID);
+        tickActionView.setText("\u2713");
+        this.tickActionView = tickActionView;
+
+        const todoText = document.createElement("SPAN");
+        todoText.textContent = inputText;
+        this.text = todoText;
+
+        const closeActionView = new TodoActionView();
+        closeActionView.initialize(todoCloseOnClickHandler);
+        closeActionView.setClass("close");
+        closeActionView.setTodoAppID(constants.CLOSE_TODO_APP_ID);
+        closeActionView.setText("\u00D7");
+        this.closeActionView = closeActionView;
+
+        this.todo = todo;
+    };
+
+    this.render = function () {
+        this.todo.append(this.tickActionView.render(), this.text, this.closeActionView.render());
+        return this.todo;
+    };
+
+    this.tickTodo = function() {
+        this.todo.classList.toggle("ticked");
+    };
+}
+
+function TodoListView() {
+    this.initialize = function(todoTickOnClickHandler, todoCloseOnClickHandler) {
+        const todoList = document.createElement("UL");
+        todoList.classList.add("todoList");
+        todoList.todoAppID = constants.TODO_LIST_ID;
+
+        this.todoList = todoList;
+        this.createTodoItemViewList();
+        this.todoTickOnClickHandler = todoTickOnClickHandler;
+        this.todoCloseOnClickHandler = todoCloseOnClickHandler;
+    };
+
+    this.render = function () {
+      return this.todoList;
+    };
+
+    this.createTodoItemViewList = function() {
+        this.todoItemViews = {};
+    };
+
+    this.addTodo = function(todoAppID, inputText, isTicked) {
+        const todoView = new TodoItemView();
+        this.todoItemViews[todoAppID] = todoView;
+        todoView.initialize(todoAppID, inputText, isTicked, this.todoTickOnClickHandler, this.todoCloseOnClickHandler);
+        this.todoList.prepend(todoView.render());
+    };
+
+    this.tickTodo = function(todoAppID) {
+        const todoView = this.todoItemViews[todoAppID];
+        todoView.tickTodo();
+    };
+
+    this.deleteTodo = function(todoAppID) {
+        const todo = find(this.todoList, todoAppID);
+        this.todoList.removeChild(todo);
+        delete this.todoItemViews[todoAppID];
+    };
+}
+
+function TodoAppView() {
+
+    this.initialize = function (inputOnEnterHandler, todoTickOnClickHandler, todoCloseOnClickHandler) {
+        const todoHeaderView = new TodoHeaderView();
+        todoHeaderView.initialize(inputOnEnterHandler);
+        this.todoHeaderView = todoHeaderView;
+
+        const todoListView = new TodoListView();
+        todoListView.initialize(todoTickOnClickHandler, todoCloseOnClickHandler);
+        this.todoListView = todoListView;
+    };
+
+    this.render = function (todos) {
+        document.body.append(this.todoHeaderView.render(), this.todoListView.render());
+        this.renderAllTodos(todos)
+    };
+
+    this.renderAllTodos = function (todos) {
+        for(let todoId in todos) {
+            const todo = todos[todoId];
+            this.todoListView.addTodo(todo.id, todo.text, todo.isTicked);
         }
+    };
 
-        header.addEventListener("keypress", inputOnEnter);
-        taskList.addEventListener("keypress", inputOnEnter);
-    }
+    this.addTodo = function (todoAppID, inputText, isTicked) {
+        this.todoListView.addTodo(todoAppID, inputText, isTicked);
+    };
 
-    function bindToggleTask(handler) {
-        taskList.addEventListener("click", (event) => {
-            if(event.target.classList.contains("check")) {
-                let task = event.target.closest("LI");
-                handler(task.id);
-            }
-        });
-    }
+    this.tickTodo = function (todoAppID) {
+        this.todoListView.tickTodo(todoAppID);
+    };
 
-    function bindDeleteTask(handler) {
-        taskList.addEventListener("click", (event) => {
-            if(event.target.classList.contains("close")) {
-                let task = event.target.closest("LI");
-                handler(task.id);
-            }
-        });
-    }
+    this.deleteTodo = function (todoAppID) {
+        this.todoListView.deleteTodo(todoAppID);
+    };
+}
 
-    let header = getElement(".todoHeader");
-    let title = createElement("h1");
-    title.textContent = "To-do list";
-    header.append(title);
-    header.append(createInputElement(TASK_LIST_ID));
+function TodoListModel() {
+    this.initialize = function () {
+        const numberOfTodos = JSON.parse(localStorage.getItem(constants.NUMBER_OF_TODOS_KEY)) || 0;
+        this.numberOfTodos = numberOfTodos;
 
-    let taskView = getElement(".viewTodos");
-    let taskList = createElement("UL", "taskList");
-    taskView.append(taskList);
+        const listRoot = JSON.parse(localStorage.getItem(constants.LIST_ROOT_KEY)) || {
+            id: constants.TODO_LIST_ID,
+            todos: {}
+        };
+        this.listRoot = listRoot;
+    };
 
-    return {
-        renderTasks,
-        bindAddToTask,
-        bindToggleTask,
-        bindDeleteTask
-    }
-})();
+    this.commit = function () {
+        localStorage.setItem(constants.LIST_ROOT_KEY, JSON.stringify(this.listRoot));
+        localStorage.setItem(constants.NUMBER_OF_TODOS_KEY, JSON.stringify(this.numberOfTodos));
+    };
 
-let todoController =
-    (function (model, view) {
+    this.createTodo = function (todoText) {
+        const todo = {
+            id: this.numberOfTodos++,
+            text: todoText,
+            isTicked: false
+        };
+        return todo;
+    };
 
-        function getAllTasks() {
-            return model.getAllTasks();
-        }
+    this.addTodo = function (todoText) {
+        const todo = this.createTodo(todoText);
+        this.listRoot.todos[todo.id] = todo;
+        this.commit();
+        return todo.id;
+    };
 
-        function renderTasks() {
-            let tasks = getAllTasks();
-            view.renderTasks(tasks);
-        }
+    this.tickTodo = function (todoId) {
+        const todo = this.listRoot.todos[todoId];
+        todo.isTicked = todo.isTicked ? false : true;
+        this.commit();
+    };
 
-        function addToTask(taskId, inputText) {
-            let taskIdNum = Number(taskId);
-            model.addToTask(taskIdNum, inputText);
-            renderTasks();
-        }
+    this.deleteTodo = function (todoId) {
+        delete this.listRoot.todos[todoId];
+        this.commit();
+    };
 
-        function toggleTask(taskId) {
-            let taskIdNum = Number(taskId);
-            model.toggleTask(taskIdNum);
-            renderTasks();
-        }
+    this.getAllTodos = function () {
+        return {...this.listRoot.todos};
+    };
+}
 
-        function deleteTask(taskId) {
-            let taskIdNum = Number(taskId);
-            model.deleteTask(taskIdNum);
-            renderTasks();
-        }
+function TodoController() {
 
-        renderTasks();
-        view.bindAddToTask(addToTask);
-        view.bindToggleTask(toggleTask);
-        view.bindDeleteTask(deleteTask);
-    })(model, view);
+    this.initialize = function () {
+        const todoListModel = new TodoListModel();
+        todoListModel.initialize();
+        this.todoListModel = todoListModel;
+
+        const todoAppView = new TodoAppView();
+        todoAppView.initialize(this.addTodo, this.tickTodo, this.deleteTodo);
+        this.todoAppView = todoAppView;
+
+        const todos = this.todoListModel.getAllTodos();
+        this.todoAppView.render(todos);
+    };
+
+    this.addTodo = (function (inputText) {
+        const todoId = this.todoListModel.addTodo(inputText);
+        this.todoAppView.addTodo(todoId, inputText, false);
+    }).bind(this);
+
+    this.tickTodo = (function (todoId) {
+        this.todoListModel.tickTodo(todoId);
+        this.todoAppView.tickTodo(todoId);
+    }).bind(this);
+
+    this.deleteTodo = (function (todoId) {
+        this.todoListModel.deleteTodo(todoId);
+        this.todoAppView.deleteTodo(todoId);
+    }).bind(this);
+}
+
+const todoController = new TodoController();
+todoController.initialize();

@@ -7,7 +7,7 @@
     border-radius: 10px;
 }
 
-input {
+.todoInput {
     font-size: 16px;
     width: 80%;
     margin-left: 4px;
@@ -19,7 +19,7 @@ input {
     border-radius: 5px;
 }
 
-.action {
+.todoAction {
     color: white;
     text-shadow: 0 0 5px #000000;
     cursor: pointer;
@@ -34,26 +34,26 @@ input {
     user-select: none;
 }
 
-.action:hover {
+.todoAction:hover {
     background-color: #7d9cdf;
     color: white;
 }
 
-.action.check {
+.todoAction.tick {
     left: 0;
 }
 
-.action.close {
+.todoAction.close {
     right: 0;
 }
 
-.taskList {
+.todoList {
     padding: 0;
     margin-top: 12px;
     list-style-type: none;
 }
 
-.task {
+.todo {
     font-size: 18px;
     cursor: text;
     outline: none;
@@ -64,16 +64,16 @@ input {
     position: relative;
 }
 
-.task:hover {
+.todo:hover {
     background: #dddddd;
 }
 
-.task.checked {
+.todo.ticked {
     background: #adbddf;
     color: #ffffff;
     text-decoration: line-through;
 }
 
-.task.checked:hover {
+.todo.ticked:hover {
     background: #bbbbbb;
 }
